@@ -31,7 +31,7 @@ Phase-1 parse of the data source (see `tableau-semantics.md`):
 | **Risk Areas** | Migration gotchas that affect correctness — the relative-date window, Sunday-week anchoring, non-additive blended measures, any renamed/deprecated fields (`Tableau calc X → column Y`). |
 | **Example Questions** | 2–3 questions the migrated dashboards answer, in the user's own words (drives retrieval). |
 
-**Keep OUT** (each has a better home — see the `context-management`
+**Keep OUT** (each has a better home — see the `context-consultant`
 skill): field-by-field column meanings → **warehouse descriptions**; which tables
 are golden → **endorsements**; the SQL of every individual chart → the project
 itself. Don't restate those here or the guide bloats and retrieval degrades.
@@ -82,4 +82,4 @@ source evolves.
 
 The guide is the fast, headless win. For a fuller semantic layer — endorsements,
 warehouse descriptions, or a YAML semantic model for must-be-exact metrics — use
-the **`context-management`** skill. Not required to ship the guide.
+the **`context-consultant`** skill. Not required to ship the guide.

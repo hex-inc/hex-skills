@@ -1,4 +1,4 @@
-# Hex Context Management
+# Hex Context Consultant
 
 **Makes Hex's AI agents (Threads, the Notebook Agent, the Modeling Agent) give trusted answers — and lets you test if they keep giving them over time.**
 
@@ -20,18 +20,18 @@ You describe the problem ("Threads keeps picking the staging table"); the skill 
 **Claude Code**
 ```
 /plugin marketplace add hex-inc/hex-skills
-/plugin install context-management@hex-skills
+/plugin install context-consultant@hex-skills
 ```
 Then ask: *"help me build context for our revenue KPIs in Hex."*
 
 **Any agent (Agent Skills standard)**
 ```
-npx skills add hex-inc/hex-skills --skill context-management
+npx skills add hex-inc/hex-skills --skill context-consultant
 ```
 
-**Claude.ai (no code)** — download `context-management.skill` from the [latest release](https://github.com/hex-inc/hex-skills/releases), then Settings → Capabilities → Skills.
+**Claude.ai (no code)** — download `context-consultant.skill` from the [latest release](https://github.com/hex-inc/hex-skills/releases), then Settings → Capabilities → Skills.
 
-**Codex** — point it at `skills/context-management/SKILL.md` (or the repo-root [`AGENTS.md`](../../AGENTS.md)).
+**Codex** — point it at `skills/context-consultant/SKILL.md` (or the repo-root [`AGENTS.md`](../../AGENTS.md)).
 
 ## How it works
 
@@ -45,7 +45,7 @@ It's all context-as-code: guides, `hex.md`, and semantic models live as files in
 ## What's inside
 
 ```
-context-management/
+context-consultant/
 ├── SKILL.md              # start here — orients, then routes
 ├── workflows/            # bootstrap (0→1) and the improve loop
 ├── agents/

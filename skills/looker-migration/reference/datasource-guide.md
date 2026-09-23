@@ -31,7 +31,7 @@ Phase-1 parse):
 | **Risk Areas** | Migration gotchas that affect correctness — week anchoring (`week_start_day`), `count` vs `count_distinct`, non-additive/ratio measures, PDT snapshot drift, any user-attribute RLS that was flagged not ported. |
 | **Example Questions** | 2–3 questions the migrated dashboards answer, in the user's own words (drives retrieval). |
 
-**Keep OUT** (each has a better home — see the `context-management`
+**Keep OUT** (each has a better home — see the `context-consultant`
 skill): field-by-field column meanings → **warehouse descriptions**; which tables
 are golden → **endorsements**; the SQL of every individual chart → the project
 itself. Don't restate those here or the guide bloats and retrieval degrades.
@@ -86,7 +86,7 @@ The guide is the fast, **fully headless** win — ship it always. For a governed
 a Hex **semantic model** (`type: model`/`view`) — the near-1:1 LookML lift — via
 [`semantic-model.md`](semantic-model.md). That path needs one manual UI step (create
 the empty semantic project) and then publishes via `hex context`. For endorsements
-and warehouse descriptions, use the **`context-management`** skill. None of
+and warehouse descriptions, use the **`context-consultant`** skill. None of
 these is required to ship the guide.
 
 > Because LookML is a real semantic model, the mapping is close to 1:1: a LookML

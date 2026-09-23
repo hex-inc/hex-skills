@@ -8,7 +8,7 @@ standard.
 
 | Skill | Description |
 |-------|-------------|
-| [context-management](skills/context-management/) | Build and improve the context that makes Hex's AI agents accurate (endorsements, descriptions, workspace context, guides, semantic models), then measure it with a dedicated eval engine — authoring and running eval suites, sourcing cases from real usage, and gating changes in a preview — managed as code and synced to Hex. |
+| [context-consultant](skills/context-consultant/) | Build and improve the context that makes Hex's AI agents accurate (endorsements, descriptions, workspace context, guides, semantic models), then measure it with a dedicated eval engine — authoring and running eval suites, sourcing cases from real usage, and gating changes in a preview — managed as code and synced to Hex. |
 | [looker-migration](skills/looker-migration/) | Migrate Looker dashboards/Looks into Hex. Translates LookML + Looker's generated SQL, lets Hex's notebook agent build a generative app on gated SQL cells, and verifies with a SQL-fidelity gate (numeric parity vs Looker) + a visual-QA loop. |
 | [tableau-migration](skills/tableau-migration/) | Migrate Tableau dashboards/workbooks into Hex. Parses the `.twb` into a migration brief, lets Hex's notebook agent build a generative app on gated SQL cells, and verifies with a SQL-fidelity gate + a visual-QA loop. |
 
@@ -20,7 +20,7 @@ Install one skill at a time from the shared marketplace:
 
 ```
 /plugin marketplace add hex-inc/hex-skills
-/plugin install context-management@hex-skills
+/plugin install context-consultant@hex-skills
 ```
 
 See each skill's README for usage examples.
@@ -69,7 +69,7 @@ hex-skills/
 
 ## Adding a new skill
 
-Use [`skills/context-management/`](skills/context-management/) as the reference
+Use [`skills/context-consultant/`](skills/context-consultant/) as the reference
 implementation. Each skill is a self-contained folder under `skills/`.
 
 ### 1. Create the skill folder
@@ -89,7 +89,7 @@ skills/<skill-name>/
 `references/` or `agents/` and link to those files from `SKILL.md`.
 
 **`README.md`** should cover what the skill does, what's inside, and how to install/use it for
-this skill specifically (see the context-management README for an example).
+this skill specifically (see the context-consultant README for an example).
 
 ### 2. Register the skill in the repo
 
@@ -112,7 +112,7 @@ Update these three files so agents and install tools can discover the new skill:
 ### 3. Add the plugin manifest
 
 Create `skills/<skill-name>/.claude-plugin/plugin.json`. Copy from
-[`skills/context-management/.claude-plugin/plugin.json`](skills/context-management/.claude-plugin/plugin.json)
+[`skills/context-consultant/.claude-plugin/plugin.json`](skills/context-consultant/.claude-plugin/plugin.json)
 and update `name`, `description`, and `keywords`. Keep `repository` pointing at this repo.
 
 ### 4. Open a PR
