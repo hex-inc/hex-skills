@@ -17,7 +17,7 @@ description: >
   setup every time.
 ---
 
-# Hex Context Management
+# Hex Context Consultant
 
 Build, manage, and improve the context that makes Hex's agents give trustworthy answers. The one idea
 that matters: **agents are only as good as the context you give them, and context compounds.** Scope to

@@ -1,4 +1,4 @@
-# Hex Context Management
+# Hex Context Consultant
 
 **Makes Hex's AI agents (Threads, the Notebook Agent, the Modeling Agent) give trusted answers — and lets you test if they keep giving them over time.**
 
