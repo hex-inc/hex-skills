@@ -10,8 +10,8 @@
   },
   "plugins": [
     {
-      "name": "context-management",
-      "source": "./skills/context-management",
+      "name": "context-consultant",
+      "source": "./skills/context-consultant",
       "description": "Build, manage, and improve the context that makes Hex's AI agents (Threads, Notebook Agent, Modeling Agent) accurate — endorsements, warehouse descriptions, workspace context, guides, and semantic models — then measure it with a dedicated eval engine that authors and runs eval suites, sources cases from real usage, and gates changes in a hex context preview. Publish via GitHub sync or the Hex CLI. Routes to the specific workflow instead of running full setup each time.",
       "version": "2.1.0"
     },

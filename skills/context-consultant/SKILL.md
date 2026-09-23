@@ -1,5 +1,5 @@
 ---
-name: context-management
+name: context-consultant
 description: >
   Use to build, manage, and improve the context that makes Hex's AI agents (Threads, the Notebook
   Agent, the Modeling Agent) accurate — endorsements & exclusions, warehouse descriptions, workspace
