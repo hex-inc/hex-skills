@@ -12,6 +12,14 @@ standard.
 | [looker-migration](skills/looker-migration/) | Migrate Looker dashboards/Looks into Hex. Translates LookML + Looker's generated SQL, lets Hex's notebook agent build a generative app on gated SQL cells, and verifies with a SQL-fidelity gate (numeric parity vs Looker) + a visual-QA loop. |
 | [tableau-migration](skills/tableau-migration/) | Migrate Tableau dashboards/workbooks into Hex. Parses the `.twb` into a migration brief, lets Hex's notebook agent build a generative app on gated SQL cells, and verifies with a SQL-fidelity gate + a visual-QA loop. |
 
+## Snowflake Cortex Code (CoCo) skills
+
+[`snowflake-coco/`](snowflake-coco/) holds a Hex skill bundle built for Snowflake Cortex Code. It
+routes CoCo requests to Hex sub-skills for setup, projects and apps, notebook authoring, business
+analytics, context engineering, Cortex AI functions, and Tableau/Looker migration. It relies on
+CoCo's runtime, so it is installed separately from the skills above. See the
+[CoCo README](snowflake-coco/README.md) for install steps.
+
 ## Install
 
 ### Claude Code (plugin marketplace)
@@ -64,6 +72,9 @@ hex-skills/
 │       ├── agents/                   # optional specialist agents
 │       ├── references/               # optional supporting material
 │       └── hex-guides/               # optional Hex product install artifacts
+├── snowflake-coco/
+│   ├── README.md                     # install + usage for the CoCo bundle
+│   └── hex/                          # CoCo skill: SKILL.md router + sub-skills + references/
 └── README.md
 ```
 
