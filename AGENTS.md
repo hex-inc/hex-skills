@@ -8,6 +8,9 @@ This repo contains Agent Skills for working with Hex. Read the skill that matche
 | Migrate Looker content (LookML models/explores, user-defined or LookML dashboards, Looks) into Hex — convert/port/rebuild "Looker → Hex" | [`skills/looker-migration/SKILL.md`](skills/looker-migration/SKILL.md) |
 | Migrate Tableau content (.twb/.twbx, Tableau Cloud/Server views/workbooks) into Hex — convert/port/rebuild "Tableau → Hex" | [`skills/tableau-migration/SKILL.md`](skills/tableau-migration/SKILL.md) |
 
+Skills under [`snowflake-coco/`](snowflake-coco/) are written for Snowflake Cortex Code (CoCo) and
+assume its runtime. Use them only when running inside CoCo; otherwise use the skills above.
+
 Each skill routes to specialists in its `agents/` folder and supporting material in `references/`.
 Read referenced files as needed. Before giving step-by-step Hex UI instructions, fetch the relevant
 page listed in that skill's `references/hex-docs.md` so steps stay current.
