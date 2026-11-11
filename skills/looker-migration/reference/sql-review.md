@@ -49,6 +49,8 @@ For each tile capture:
 | **Table calcs / windows** | `dynamic_fields` Looker expression | the translated SQL (`OVER(...)`) |
 | **Joins / model** | explore `join`s: keys + `relationship:` | the `FROM … JOIN …` |
 | **RLS** | `access_filter` / user-attribute Liquid | ported / flagged (§checklist) |
+| **Nested access** | each `UNNEST`/`FLATTEN` join, struct/JSON path dimension ([`nested-data.md`](nested-data.md)) | the flatten form + which grain each measure aggregates at + the casts |
+| **Liquid** | every `{% %}`/`{{ }}` in the fields' `sql:`, `sql_table_name`, derived tables | the Jinja it became, or the **branch resolved for this tile** ([`liquid.md`](liquid.md)) |
 
 Keep it in the migration plan/manifest alongside the `sql_cell → [tiles]` mapping.
 Reuse the status legend (✅/🔸/🐍/⚠️) from
@@ -121,6 +123,14 @@ Run every cluster against this. Each line is a real class of oracle-invisible er
   [`lookml-semantics.md`](lookml-semantics.md).
 - ☐ **`${...}` refs fully resolved.** No `${TABLE}` / `${view.field}` left
   literal; transitive refs expanded.
+- ☐ **Nested / repeated grain.** Parent measures aggregate at the parent grain
+  (`COUNT(*)` = `COUNT(DISTINCT parent_pk)`), empty-array parents are kept or dropped as
+  Looker does, extracted values are cast, and a parent with no `primary_key` is flagged.
+  → [`nested-data.md`](nested-data.md).
+- ☐ **Liquid branches resolved and exercised.** Inner quotes dropped from string-param
+  comparisons, `_in_query`-style branches resolved per tile, `unquoted` → hardcoded
+  branches, templated filters kept inside their CTE, empty-string truthiness matched,
+  default + one non-default value parity-checked. → [`liquid.md`](liquid.md).
 - ☐ **RLS handled explicitly.** `access_filter` / user-attribute Liquid is either
   ported (with the chosen Hex mechanism) or **flagged** in the notes — never
   silently dropped. → [`lookml-semantics.md`](lookml-semantics.md) §6.
