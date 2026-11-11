@@ -91,7 +91,7 @@ A `dimension` is a row-level (non-aggregated) column.
 | legacy `case: { when: {...} else: … }` | rewrite to `CASE WHEN … ELSE … END` |
 | `type: location` (paired lat/lon) | keep the two numeric columns; the map itself → Python (see §8) |
 
-`html:` / `link:` on a dimension is **display/hyperlink styling** — the underlying data is the `sql:`; drop the styling (note it), keep the value.
+`html:` / `link:` on a dimension is **display/hyperlink styling**. The underlying data is the `sql:`, so keep the value. Don't silently drop the styling: conditional Liquid in `html:` (color by threshold, icons) and drill `link:`s carry meaning the generative app can reproduce. Carry them into the styling spec (see [`liquid.md`](liquid.md)).
 
 ## 2. Measures → aggregates (the COUNTD trap lives here)
 
@@ -179,6 +179,10 @@ explore: orders {
 
 Preserve the join **grain**: build the cluster SQL at the finest grain any tile needs. Looker's generated SQL (`looker_fetch.py sql`) shows exactly which joins fire for a given field set — a field that's never referenced won't join, so don't add joins a cluster doesn't use.
 
+## 5.5. Nested & repeated data → [`nested-data.md`](nested-data.md)
+
+If discovery finds `UNNEST`/`FLATTEN`/`explode` joins, dotted or JSON-path field `sql:`, or `STRUCT`/`ARRAY`/`VARIANT`/JSON columns, **read [`nested-data.md`](nested-data.md)** before translating. Unnest joins fan out, and Looker's symmetric aggregates hide that.
+
 ## 6. Mandatory filters & row-level security
 
 Explore-level filters apply to **every** query on the explore — they belong in the **shared `WHERE`**, not a per-tile filter:
@@ -209,6 +213,10 @@ Looker templating (`{% parameter %}`, `{% condition %}`, `{{ _filters[…] }}`, 
 - **`filter` field** (a filter-only field) + `{% condition %}` → a Hex input cell wired into the `WHERE` via `{% condition %}`'s intent.
 - **Liquid `{% if _user_attributes[…] %}`** → user-attribute-dependent — same RLS caveat as §6.
 - **`{% date_start %}` / `{% date_end %}`** (a date-range filter) → a Hex date-range input, two Jinja bounds in the `WHERE`.
+
+### 7.3. Advanced Liquid → [`liquid.md`](liquid.md)
+
+If the sweep finds `_parameter_value`, `_in_query`/`_is_selected`/`_is_filtered`, a `{% condition %}` inside a `derived_table`, `type: unquoted` parameters, Liquid in `sql_table_name`, or conditional `html:`, **read [`liquid.md`](liquid.md)** for the traps.
 
 ### 7.4. Looker relative-date filter grammar → an explicit window (get the boundary right)
 

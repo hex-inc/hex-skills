@@ -116,12 +116,16 @@ is a missed chart.
    vs. named ones). Data-population filters belong in the shared `WHERE`;
    chart-scoped `query.filters` attach to their cells. See
    [`lookml-semantics.md`](lookml-semantics.md) §7.
+   For Liquid-driven params, state **what each value does** (not the Liquid), the
+   branch you resolved per tile, and any templated filter that must stay inside its
+   CTE ([`liquid.md`](liquid.md)).
 5. **The derivations needed** — the shared base (finest-grain cluster) + every
    companion (running totals / other table calcs, ratio-of-measures, KPI scalars),
    each as **intent + the LookML construct it came from**. This is where you prevent
    the agent from missing a `dynamic_fields` table calc or a `type: number` ratio.
-   Reuse the status legend (✅/🔸/🐍/⚠️) from
-   [`lookml-semantics.md`](lookml-semantics.md).
+   For nested data, name the nested columns, which tiles need the child vs. parent
+   grain, and the casts ([`nested-data.md`](nested-data.md)). The agent sees the schema
+   but not Looker's symmetric-aggregate intent.
 6. **The charts** — one line per tile: title (exact), chart type (from
    `vis_config.type`), x / y + aggregation, color/pivot split, sort, number format
    (from the measure's `value_format_name`), and which derivation it reads. Name the
