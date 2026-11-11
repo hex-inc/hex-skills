@@ -25,3 +25,9 @@ they don't need to exist in the public dataset).
   against `expected/`. Extend coverage by adding more `expected/*.sql`.
 - **Live (needs a Looker license):** load the project into a Looker instance to
   exercise `looker_fetch.py` (contract, generated SQL, `query` parity, `shots`).
+
+## `ga4/`
+Google's GA4 Looker block (not vendored: Google Cloud terms; fetch pinned, see
+[`ga4/README.md`](ga4/README.md)). Exercises nested/repeated data and advanced
+Liquid. Hand-derived ground truth for the Page Funnel dashboard + a blind dry-run
+report in [`ga4/FINDINGS.md`](ga4/FINDINGS.md).

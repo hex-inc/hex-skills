@@ -96,6 +96,16 @@ Run every cluster against this. Each line is a real class of oracle-invisible er
 - ☐ **Join grain / fan-out.** `relationship:` preserved; a `one_to_many` /
   `many_to_many` join that fans out inflates every downstream `SUM`/`COUNT`.
   Prove it with a probe (§4).
+- ☐ **Per-tile join graph and aggregation.** Each tile's joins include those forced by
+  filters and by `${}` refs inside its fields (all `CASE` branches). Every `many_to_one`
+  with an `OR`/regex/non-equi ON, and every declared `primary_key` a measure relies on,
+  is probed (`COUNT(*) = COUNT(DISTINCT key)`). Each tile's measures are ported as plain
+  or symmetric (deduplicated) aggregation to match what Looker does *for that tile's
+  query*. → §5 of [`lookml-semantics.md`](lookml-semantics.md).
+- ☐ **Query timezone.** Timestamp dimensions and date filters match Looker's
+  `convert_tz` / query-timezone conversion. → §3 of [`lookml-semantics.md`](lookml-semantics.md).
+- ☐ **Sort + limit.** Each tile's `sorts`/`limit` carried; a `limit` without `sorts`
+  uses Looker's default order. → §9.
 - ☐ **Ratio / non-additive measures.** `type: number` measures dividing two sums,
   margin %, conversion rate computed as `SUM(a)/SUM(b)` in SQL — **not** an
   EXPLORE aggregating a pre-divided column. → [`lookml-semantics.md`](lookml-semantics.md) §2, §9.
@@ -253,6 +263,25 @@ project holds only real SQL + chart cells.
   this gate for the affected cluster. Don't ship an app on unreviewed SQL.
 - **Deferred (🐍/⚠️)** — recorded in the ledger + migration notes as a known gap
   for the customer; not a blocker.
+- **Unverified (offline path)** — no generated SQL and no Looker values (only
+  `.lkml` files). The gate can't pass: run §1–§3 and every probe, mark every ✅/🔸 row
+  "translated, not parity-verified", and list the parity checks still owed. Never
+  report an offline migration as verified.
+
+### When Looker's own number is wrong
+
+Sometimes the review shows the source itself is wrong: a fan-out through a join
+declared `many_to_one`, a non-unique `primary_key`, a copy-paste bug in a `sql_on`, a
+field whose SQL contradicts its description. Don't fix it silently, and don't silently
+copy it either:
+1. **Reproduce Looker's behavior** in the gated SQL so parity ties. That's the number
+   the customer's team has been looking at.
+2. **Flag it ⚠️** in the ledger and migration notes: what's wrong, which tiles, roughly
+   how big the effect is (a probe count is enough).
+3. **Offer the corrected version** (a companion query or a documented alternative) and
+   let the customer choose. Record their choice.
+4. **Tell the notebook agent** in the brief, so it doesn't "helpfully" deduplicate or
+   fix it (see [`build-notebook-agent.md`](build-notebook-agent.md)).
 
 **In batch mode** this runs per dashboard in Phase 2 (sequential) — **post-hoc** on
 the agent's cells, right after the build and before you mark the dashboard verified;

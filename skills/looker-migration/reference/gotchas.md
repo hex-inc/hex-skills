@@ -18,6 +18,18 @@ landmines — getting them wrong produces silently-wrong numbers, not errors.
   always `"vis"` for chart tiles (`"text"` for text tiles) — reading it gives every
   chart the same wrong kind. The fetch script already reads `vis_config.type`; if a
   tile shows the wrong chart kind, re-fetch the contract.
+- **`.dashboard.lookml` files (offline path) use a different shape** than the API
+  contract. Map them like this:
+
+  | API contract | `.dashboard.lookml` |
+  |---|---|
+  | `query.vis_config.type` | the element's `type:` (`looker_column`, `looker_grid`, `text`, …) |
+  | `result_maker.filterables[].listen` | the element's `listen:` map (`Filter Name: view.field`) |
+  | `dashboard_filters[]` + default | top-level `filters:` with `default_value:` |
+  | layout `row/column/width/height` | `row` / `col` / `width` / `height` on each element |
+  | `query.fields/sorts/limit/pivots` | the element's `fields:` / `sorts:` / `limit:` / `pivots:` |
+
+  Vis settings (`show_dropoff`, `stacking`, `trellis`) sit directly on the element.
 - **`dynamic_fields` is a JSON string.** Table calcs / client-side custom measures
   arrive as a JSON-encoded string on the query, not a nested object — the fetch
   script `json.loads` it. These run **after** the SQL, so `looker_fetch.py sql`
@@ -36,7 +48,15 @@ landmines — getting them wrong produces silently-wrong numbers, not errors.
 
   A missed shared-scope filter silently changes every total. ⚠️ A dashboard filter
   a tile does **not** listen to is not a predicate on that tile — check the
-  `listen` map, don't assume every filter hits every tile.
+  `listen` map, don't assume every filter hits every tile. The reverse also holds:
+  a tile can listen to a parameter that none of its fields use, so it has no effect
+  there. Scope the Hex input to the tiles it actually changes.
+  - A filter is not just a `WHERE`: a filter on a joined or nested view **adds that
+    join** to the tile's query and can switch its measures to symmetric aggregation
+    (lookml-semantics §5).
+  - A relative-date default (`7 days`) can return **nothing** on stale, sample, or
+    export-lagged data. Check the window has data before parity, and note that a
+    rolling default becomes a fixed default in Hex unless you compute it.
 - **Joins fan out — check `relationship:`.** A `one_to_many` / `many_to_many` join
   multiplies base rows, inflating every `SUM`/`COUNT`. `type: count` on a joined
   view must become `COUNT(DISTINCT <that view's PK>)`. Prove no fan-out with a
@@ -120,7 +140,7 @@ landmines — getting them wrong produces silently-wrong numbers, not errors.
   - **⚠️ Clean up probe cells before handoff.** Oracle/probe/scratch-parity cells are throwaway scaffolding — `hex cell delete <cell_id>` them (or trash the scratch project) once validated, so the delivered project holds only real SQL + chart cells.
 - `project run` / `cell run` are **async** — no `--no-wait`; poll `run status`. `cell update` has no `-t` flag.
 - Freshly imported versions have **no outputs** until you `hex project run` — charts render blank until then.
-- **No CLI to start the Notebook Agent** (`hex thread` is list/get only).
+- **The Notebook Agent starts from the CLI:** `hex thread create` / `get` / `continue` (see SKILL.md's CLI cheat-sheet).
 
 ---
 
