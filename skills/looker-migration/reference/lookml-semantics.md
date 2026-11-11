@@ -41,7 +41,7 @@ the **numbers** for the Phase-1.5 parity gate.
 3. Read each tile's `fields` and resolve them through the explore's views to their `sql:` + aggregation. Sweep the explore for `sql_always_where`/`always_filter`, joins, derived tables, `access_filter` (see [`gotchas.md`](gotchas.md) for the filter-scope + field-resolution sweep).
 4. Translate each construct with the rules below, targeting the **resolved dialect** (examples here are Snowflake — *illustrative*).
 5. Consolidate into as few SQL cells as the clusters allow (§9) — don't fork a query per tile.
-6. Parity-check against Looker's own values (`looker_fetch.py query`). For warehouse-backed explores parity is **exact**, not "drift" — a gap is a bug (unless a PDT snapshot is in play; see connection-mapping §6).
+6. Parity-check against Looker's own values (`looker_fetch.py query`). For warehouse-backed explores parity is **exact**, not "drift" — a gap is a bug (unless a PDT snapshot is in play; see connection-mapping §6). Two other legitimate sources of drift: incremental PDTs (§4), and **nondeterministic window functions** in the source (`ROW_NUMBER()` with tied `ORDER BY` values), which Looker froze once at build time and Hex recomputes every run. Size that noise with a probe (count tied keys) and report the affected rows; it doesn't excuse any other gap.
 
 ## Dialect step: check the warehouse's docs before translating
 
@@ -73,6 +73,14 @@ LookML `sql:` blocks use substitutions you must expand:
 | `${field_name}` | another dimension/measure **in the same view** | that field's resolved `sql:` (inline it) |
 | `${other_view.field}` | a field in a **joined** view | that view's column, via the join |
 | `${TABLE}.column` | a raw physical column | `alias.column` |
+| `${view.SQL_TABLE_NAME}` | another view's table (often a derived table) | that table, or its rebuilt CTE (§4) |
+| `@{CONSTANT}` | a manifest constant (`manifest.lkml`) | its value. ⚠️ Constants marked `export: override_required/optional` can be overridden by the **importing** project's manifest: read that one first. A constant can change the population (e.g. a threshold inside a `WHERE`), not just a table name. If you can't see the importing project (offline, marketplace install), ask the customer for override values and list them as a parity precondition. |
+
+**Find the field's real definition.** A view can get fields from `extends: [...]` (base
+views, often `extension: required`) and from refinements (`view: +name { … }`) in other
+files. A field on a tile may not appear in the view's own file, and when two
+definitions share a name, the extending view or the later refinement wins. Search
+every included file for the field name before concluding how it's defined.
 
 Resolve refs **transitively** (a measure may reference a dimension that references another dimension). A measure's `sql:` typically wraps a dimension ref: `measure: total_revenue { type: sum sql: ${revenue} ;; }` where `dimension: revenue { sql: ${TABLE}.amount ;; }` → `SUM(orders.amount)`.
 
@@ -149,6 +157,7 @@ dimension_group: created {
 - 🔸 **Keep it a real DATE/TIMESTAMP** end-to-end so Hex's date axis + granularity controls work — carry the grain as the chart's `truncUnit`, don't bind a numeric proxy. See [`building-cells.md`](building-cells.md) + [`gotchas.md`](gotchas.md).
 - 🔸 **Fiscal / `fiscal_month_num` etc.** honor the model's `fiscal_month_offset` — don't map to a plain calendar month.
 - **`type: duration`** dimension_group (`intervals:`) → `DATEDIFF(<unit>, sql_start, sql_end)`; emit the start/end columns it needs.
+- 🔸 **Query timezone.** Unless `convert_tz: no` (or the field is `datatype: date`), Looker converts a timestamp from the connection's database timezone to the query timezone **before** truncating or filtering. A non-UTC setup moves rows across day, week and month boundaries, and a midnight-stored "date" timestamp can shift a whole day. Check `looker_fetch.py sql` for the conversion (or ask for the connection's timezone settings) and replicate it. Offline (no generated SQL), ask the customer for the connection and query timezone and whether user-specific timezones are on (then numbers differ per viewer); until answered, assume UTC, mark 🔸, and list it as a parity precondition. If you pushed a date window into a rebuilt PDT (§4), widen it by a day on each side when the timezone is not UTC.
 
 ## 4. Derived tables & PDTs → CTE / subquery
 
@@ -157,6 +166,8 @@ A `derived_table` defines a view from a query instead of a physical table.
 - **SQL-based** (`derived_table: { sql: SELECT … ;; }`) → lift the SQL into a **CTE** (or a subquery) and select from it. Resolve any `${other_view.SQL_TABLE_NAME}` refs to the referenced view's table (or inline that view's derived SQL as a preceding CTE). Translate the SQL to the target dialect.
 - **Native derived table** (`derived_table: { explore_source: … }`) → it's a LookML query, not raw SQL. Rebuild it as SQL by translating the referenced explore's fields/measures (same rules as a tile), or grab it via `looker_fetch.py sql` on that explore's query. Flag if complex.
 - **Persistence** (`datagroup_trigger` / `persist_for` / `materialized_view`) → Looker materializes to the `tmp_db_name` scratch schema. **Default: rebuild the SQL inline** as a Hex SQL cell (live, fresh). Only point at the scratch table if the PDT is expensive and snapshot drift is acceptable — and then it's a materialized snapshot, not live (connection-mapping §6). Either way the SQL stays as slow as it was in Looker; note it.
+- **Incremental PDTs** (`increment_key`, `{% incrementcondition %} … {% endincrementcondition %}`) → Looker appends new periods to a stored table, so its values can drift from a full rebuild. Drop the tag when you rebuild inline.
+- **Pushing the dashboard's filter into a rebuilt PDT** (needed for cost when the chain scans all history) is safe **only if** every window function, aggregate, dedup and join inside the chain partitions by a key that determines the filtered column (e.g. a session key that embeds the date). It's unsafe for anything computed across the filter boundary (a user's first-ever session, lifetime totals, "previous order"). When unsure, don't push it down; note the cost. This is the opposite of templated filters, which must stay *inside* (see [`liquid.md`](liquid.md)).
 
 ## 5. Explores & joins → `FROM … JOIN …`
 
@@ -172,12 +183,27 @@ explore: orders {
 |---|---|
 | `join: x { sql_on: … ;; type: left_outer (default) }` | `LEFT JOIN x ON …` |
 | `type: inner` / `full_outer` / `cross` | the matching JOIN |
-| `relationship: many_to_one` (default) | fact→dim, safe (one dim row per fact row) |
+| `relationship: many_to_one` (default) | fact→dim: safe **only if the ON really matches at most one row**. `relationship:` is a declaration, not a guarantee. An `OR`, regex, range, or other non-equi `sql_on`, or a join key that isn't unique on the dim side, fans out silently. |
 | `relationship: one_to_many` / `many_to_many` | ⚠️ **fans out** — a `SUM`/`COUNT` over the base view inflates. Aggregate the many-side first (a pre-agg CTE), or use `COUNT(DISTINCT pk)` / `SUM(DISTINCT …)`. Prove no fan-out with a probe (sql-review §4). |
 
 ⚠️ **Outer-join *direction* is a population concern, not just `relationship:`.** A `type: full_outer` (or `right_outer`) join adds **unmatched rows from the other side** to the base — even at `one_to_one` (no fan-out), a `COUNT(*)`/`SUM` over the base can pick up phantom rows the dashboard never intended. Match the LookML's join type, but when a tile only wants base rows, confirm whether the outer side should really contribute unmatched rows (often it shouldn't → `LEFT JOIN`). (Seen live: `order_items` joins `inventory_items` `full_outer one_to_one`.)
 
-Preserve the join **grain**: build the cluster SQL at the finest grain any tile needs. Looker's generated SQL (`looker_fetch.py sql`) shows exactly which joins fire for a given field set — a field that's never referenced won't join, so don't add joins a cluster doesn't use.
+Preserve the join **grain**: build the cluster SQL at the finest grain any tile needs. Looker's generated SQL (`looker_fetch.py sql`) shows exactly which joins fire for a given query. Don't add joins a cluster doesn't use.
+
+**Which joins fire.** A join fires when the query references any field from that view, and "references" is broader than the tile's `fields`:
+- a field used in a tile **filter or a listened dashboard filter** (a filter on a joined or nested view brings in its join);
+- any `${view.field}` inside a selected field's `sql:`, resolved transitively, **in every branch** of a SQL `CASE`, whichever branch the data takes;
+- `required_joins:`, and joins that a fired join's `sql_on` depends on;
+- views with `fields: []` and joins with an empty `sql: ;;` (field-holder views) still fire when referenced this way.
+
+So a tile's join graph can include joins no visible field suggests, and two tiles on the same explore can have different graphs. Derive the graph per tile, and if a forced join fans out, Looker's number includes that inflation (see "Symmetric aggregates" below and the policy in [`sql-review.md`](sql-review.md)).
+
+**Symmetric aggregates (how Looker survives fan-out, sometimes).** When a query includes a join Looker *knows* fans out (`one_to_many`/`many_to_many`), it rewrites `sum`/`average`/`count` measures on the fanned-out views as hash-based `SUM(DISTINCT …)` keyed on each view's `primary_key` (you'll see `MD5`/`FARM_FINGERPRINT` arithmetic in the generated SQL). Three consequences:
+- **It's per query.** The same measure is plain `SUM` in one tile and deduplicated in another, depending on whether a fanning join (often pulled in by a filter) is present. Treat each tile's aggregation separately.
+- **It trusts declarations.** A fan-out through a join declared `many_to_one` gets no protection, so Looker's number is inflated.
+- **It trusts `primary_key`.** No PK means no dedup. A declared PK that **isn't unique** (common when a derived table's own joins duplicate rows) means a plain `SUM` is inflated whenever no fanning join is present. **Probe uniqueness of every declared PK you rely on:** `COUNT(*) = COUNT(DISTINCT pk)`.
+
+Port by aggregating each view at its own grain (pre-aggregated CTEs, `COUNT(DISTINCT pk)`), not by pasting the hashing SQL.
 
 ## 5.5. Nested & repeated data → [`nested-data.md`](nested-data.md)
 
@@ -289,16 +315,21 @@ Once each construct is translated, decide the **SQL cell shape**. Don't emit one
 - the same **explore-scoped filters** (`sql_always_where` / `always_filter` / a dashboard filter with a default that every tile listens to) — put them in the shared `WHERE`,
 - a **compatible grain** — build at the **finest grain any tile in the group needs** (plus its date/id keys); each chart rolls up from there.
 
-Then emit **one SQL cell per cluster**, selecting the **union of every field + measure** the cluster's tiles reference. Add shared calculated columns **once**.
+Then emit **one SQL cell per cluster**, selecting the **union of every field + measure** the cluster's tiles reference. Add shared calculated columns **once**, but only when the resolved `sql:` is **identical**. Fields that look the same often differ in a regex, a `COALESCE` default, or an extra predicate, and merging them changes values (and breaks filters whose values came from the other variant).
+
+**Tile query shape.** Carry each tile's `sorts` and `limit` into its chart or companion query. When a tile has `limit` but **no** `sorts`, Looker applies its own default order (a time dimension descending if present, otherwise the first measure descending; confirm with `looker_fetch.py sql`), and that decides *which* rows survive the limit. Ties at the limit boundary make row-level parity flaky, so compare totals or add a tiebreaker.
+
+**Companion dataframe SQL is DuckDB**, not the warehouse dialect: re-translate functions (`IF`, `SAFE_DIVIDE`, regex, `QUALIFY`) when you move logic into a cell that reads a dataframe.
 
 **Build only what's *used*.** Translate only the fields/measures a migrated tile actually references. A LookML model defines *many* measures no dashboard places on a tile — don't build those into the dashboard SQL. Carry unused-but-valuable measures to the **data-source guide / semantic layer** instead (see [`datasource-guide.md`](datasource-guide.md)).
 
 **Keep queries separate when:**
-- **different base view or join graph** — no shared grain;
+- **different base view or join graph** — no shared grain (compare the per-tile graph from "Which joins fire" in §5, not just the visible fields);
+- the tiles get **different aggregation treatment** (one gets symmetric aggregates because a fanning join fires, the other a plain `SUM`; see §5);
 - one tile needs **row-level detail**, another a heavy pre-aggregation;
 - a tile carries an **explore-level** filter the others don't;
 - a **scalar KPI** off an unrelated aggregation — a tiny dedicated query beats rolling it out of a wide df;
-- a **ratio-of-measures / non-additive measure** (margin %, conversion rate, `type: number` measures dividing two sums). A Hex EXPLORE/METRIC aggregates a **single column** with one built-in aggregation — it **cannot** compute `SUM(a)/SUM(b)`. Emit a thin **companion grouped SQL that reads the shared dataframe**: `SELECT dim, SUM(a)/SUM(b) AS ratio FROM {{shared_df}} GROUP BY dim`; the chart plots `ratio`. Because it *reads* the consolidated cell, it doesn't fork the base query.
+- a **ratio-of-measures / non-additive measure** (margin %, conversion rate, `type: number` measures dividing two sums). A Hex EXPLORE/METRIC aggregates a **single column** with one built-in aggregation — it **cannot** compute `SUM(a)/SUM(b)`. Emit a thin **companion grouped SQL that reads the shared dataframe**: `SELECT dim, SUM(a)/SUM(b) AS ratio FROM shared_df GROUP BY dim`; the chart plots `ratio`. Because it *reads* the consolidated cell, it doesn't fork the base query.
   ⚠️ This is a **dataframe-SQL cell** (`dataFrameCell: true`, `dataConnectionId: null`) — `hex cell create` **can't** mint one (it ERRORs); author it in YAML, or read from the warehouse instead. See [`building-cells.md`](building-cells.md).
   (Higher-fidelity alternative: define the ratio as a semantic-model MEASURE.)
 
